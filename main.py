@@ -1,20 +1,14 @@
 from __future__ import annotations
+
 """
 main.py
 FastAPI entry point for the Elite AI Agent Service.
-
-Run with:
-    uvicorn main:app --reload --port 8000
-
-Endpoints:
-    POST /run-agent          — main agent invocation
-    GET  /health             — liveness probe
-    GET  /docs               — Swagger UI (auto-generated)
 """
+
 import os
 from dotenv import load_dotenv
 
-load_dotenv()  # This looks for your .env file and loads the keys
+load_dotenv()
 
 import logging
 import time
@@ -38,7 +32,6 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-
 # ---------------------------------------------------------------------------
 # Lifespan
 # ---------------------------------------------------------------------------
@@ -48,7 +41,6 @@ async def lifespan(app: FastAPI):
     logger.info("Elite AI Agent Service starting up...")
     yield
     logger.info("Elite AI Agent Service shutting down.")
-
 
 # ---------------------------------------------------------------------------
 # App
@@ -71,7 +63,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-
 # ---------------------------------------------------------------------------
 # Middleware
 # ---------------------------------------------------------------------------
@@ -83,7 +74,6 @@ async def add_process_time_header(request: Request, call_next):
     elapsed = time.perf_counter() - start
     response.headers["X-Process-Time-Ms"] = f"{elapsed * 1000:.1f}"
     return response
-
 
 # ---------------------------------------------------------------------------
 # Exception handler
@@ -97,23 +87,16 @@ async def global_exception_handler(request: Request, exc: Exception):
         content={"detail": "Internal server error. Check server logs."},
     )
 
-
 # ---------------------------------------------------------------------------
 # Routes
 # ---------------------------------------------------------------------------
 
 @app.get("/health", tags=["ops"])
 async def health_check():
-    """Liveness probe — returns 200 if the service is up."""
     return {"status": "ok"}
-
 
 @app.post("/run-agent", tags=["agent"])
 async def run_agent(request: UserRequest):
-    """
-    Main agent invocation endpoint.
-    LangGraph ainvoke returns a plain dict — accessed with .get()
-    """
     logger.info("Received task from user '%s': %s", request.user_id, request.task)
 
     from models import AgentState
@@ -147,3 +130,13 @@ async def run_agent(request: UserRequest):
         "circuit_broken": circuit_broken,
         "user_id": request.user_id,
     }
+
+# ---------------------------------------------------------------------------
+# Entry point for Railway (CRITICAL FIX)
+# ---------------------------------------------------------------------------
+
+if __name__ == "__main__":
+    import uvicorn
+
+    port = int(os.environ.get("PORT", 8000))  # Railway dynamic port
+    uvicorn.run("main:app", host="0.0.0.0", port=port)
